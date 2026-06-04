@@ -72,7 +72,7 @@ def _to_ms(iso_str: str) -> int:
     return int(datetime.fromisoformat(iso_str.replace("Z", "+00:00")).timestamp() * 1000)
 
 
-async def _find_by_account(account: dict):
+def _find_by_account(account: dict):
     rid = account.get("resident_id")
     period = account.get("period")
     if not rid or not period:
@@ -89,7 +89,7 @@ async def _find_by_account(account: dict):
     )
 
 
-async def _find_by_tx(tx_id: str | None):
+def _find_by_tx(tx_id: str | None):
     if not tx_id:
         return None
     return (
@@ -121,7 +121,7 @@ async def payme_webhook(
     logger.info("Payme method=%s", method)
 
     if method == M_CHECK_PERFORM:
-        payment = await _find_by_account(params.get("account", {}))
+        payment = _find_by_account(params.get("account", {}))
         if not payment:
             return _err(ERR_ORDER_NOT_FOUND, "Order not found", rid)
         if payment["status"] == "paid":
@@ -135,7 +135,7 @@ async def payme_webhook(
         tx_id = params.get("id")
         amount = params.get("amount", 0)
 
-        existing = await _find_by_tx(tx_id)
+        existing = _find_by_tx(tx_id)
         if existing:
             if existing["status"] == "paid":
                 return _err(ERR_ALREADY_PAID, "Already paid", rid)
@@ -148,7 +148,7 @@ async def payme_webhook(
                 rid,
             )
 
-        payment = await _find_by_account(params.get("account", {}))
+        payment = _find_by_account(params.get("account", {}))
         if not payment:
             return _err(ERR_ORDER_NOT_FOUND, "Order not found", rid)
         if payment["status"] == "paid":
@@ -171,7 +171,7 @@ async def payme_webhook(
 
     if method == M_PERFORM:
         tx_id = params.get("id")
-        payment = await _find_by_tx(tx_id)
+        payment = _find_by_tx(tx_id)
         if not payment:
             return _err(ERR_TX_NOT_FOUND, "Transaction not found", rid)
 
@@ -194,7 +194,7 @@ async def payme_webhook(
 
     if method == M_CANCEL:
         tx_id = params.get("id")
-        payment = await _find_by_tx(tx_id)
+        payment = _find_by_tx(tx_id)
         if not payment:
             return _err(ERR_TX_NOT_FOUND, "Transaction not found", rid)
         if payment["status"] == "paid":
@@ -212,7 +212,7 @@ async def payme_webhook(
 
     if method == M_CHECK:
         tx_id = params.get("id")
-        payment = await _find_by_tx(tx_id)
+        payment = _find_by_tx(tx_id)
         if not payment:
             return _err(ERR_TX_NOT_FOUND, "Transaction not found", rid)
 

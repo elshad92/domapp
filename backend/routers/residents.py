@@ -38,18 +38,37 @@ async def create_resident(
     return result_data[0]
 
 
-@router.get("/residents/telegram/{telegram_id}", response_model=ResidentResponse)
+@router.get("/residents/telegram/{telegram_id}")
 async def get_resident_by_telegram(
     telegram_id: int,
     _: bool = Depends(verify_internal_key),
 ):
-    """Найти жильца по Telegram ID."""
+    """Найти жильца по Telegram ID (с информацией о квартире и доме)."""
     db = get_supabase()
     result = db.table("residents").select("*").eq("telegram_id", telegram_id).execute()
     result_data = result["data"] if isinstance(result, dict) else result.data
     if not result_data or len(result_data) == 0:
         raise HTTPException(status_code=404, detail="Resident not found")
-    return result_data[0]
+
+    resident = result_data[0]
+
+    # Добавляем информацию о квартире и доме
+    apartment_id = resident.get("apartment_id")
+    if apartment_id:
+        apt = db.table("apartments").select("*").eq("id", apartment_id).maybe_single().execute()
+        apt_data = apt["data"] if isinstance(apt, dict) else apt.data
+        if apt_data:
+            resident["apartment_number"] = apt_data.get("number", "")
+            resident["building_id"] = apt_data.get("building_id")
+            # Получаем название дома
+            building_id = apt_data.get("building_id")
+            if building_id:
+                bld = db.table("buildings").select("name,address").eq("id", building_id).maybe_single().execute()
+                bld_data = bld["data"] if isinstance(bld, dict) else bld.data
+                if bld_data:
+                    resident["building_name"] = bld_data.get("name") or bld_data.get("address", "")
+
+    return resident
 
 
 @router.get("/apartments/find", response_model=list[ApartmentResponse])

@@ -5,6 +5,7 @@ Requests API.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -108,7 +109,7 @@ async def update_request_status(
     if data.status:
         update_data["status"] = data.status
         if data.status == "done":
-            update_data["resolved_at"] = "now()"
+            update_data["resolved_at"] = datetime.now(timezone.utc).isoformat()
     if data.comment is not None:
         update_data["comment"] = data.comment
     if not update_data:
