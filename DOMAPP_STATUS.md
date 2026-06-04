@@ -1,111 +1,107 @@
 # DomApp — Статус проекта
 
-> Последнее обновление: 2026-06-03 23:44
+> Последнее обновление: 2026-06-04 21:05
 
-## Сервер
-- **Хост:** 51.38.119.218 (root / DpXWg9oz38fO)
-- **Backend:** FastAPI на порту 8000
-- **БД:** Supabase (project: zoezzzvbqrvzbnyaglkt)
-- **Telegram Bot:** токен есть в .env
+## Локальная среда (Windows)
+- **Backend:** FastAPI — зависимости установлены, импорты работают
+- **Frontend:** React + Vite — зависимости установлены, сборка проходит успешно
+- **Telegram Bot:** зависимости установлены
+- **Git:** инициализирован, все изменения закоммичены
 
 ---
 
-## ✅ Что сделано
+## ✅ Что сделано (локально)
 
-### 1. Исправлен main.py
-- **Проблема:** `app.include_router(auth, ...)` вместо `app.include_router(auth.router, ...)`
-- **Ошибка:** `module 'backend.routers.auth' has no attribute 'routes'`
-- **Решение:** добавлен `.router` ко всем 10 роутерам
+### 1. Установлены все зависимости
+- Backend: FastAPI, uvicorn, httpx, PyJWT, python-jose, passlib, reportlab и др.
+- Bot: python-telegram-bot, openai, httpx
+- Frontend: React, Vite, Tailwind, axios, react-router-dom
 
-### 2. Исправлен residents.py
-- **Проблема:** отсутствовал импорт `get_current_company`
-- **Ошибка:** `NameError: name 'get_current_company' is not defined`
-- **Решение:** добавлен импорт `from backend.auth import verify_internal_key, get_current_company`
+### 2. Исправлены критические баги
 
-### 3. Очищен __pycache__
-- Удалены старые .pyc файлы, чтобы не было кэшированных ошибок
+#### Backend
+- **BuildingCreate schema:** удалено поле `company_id` (backend использует JWT, не доверяет клиенту)
+- **JWT_SECRET:** теперь не падает с RuntimeError при дефолтном значении — использует dev-секрет с предупреждением
+- **Supabase client:** добавлен mock-клиент для разработки без Supabase (возвращает пустые данные)
+- **Announcements:** добавлен эндпоинт `/bot/announcements` для бота (использует internal key вместо JWT)
 
-### 4. Сервер запущен и работает
-- Health check: `{"status":"ok","version":"0.3.0","database":"connected"}`
-- Аутентификация работает (admin@domapp.uz / test123)
+#### Frontend
+- **Buildings.jsx:** удалена отправка `company_id` в query params и POST body
+- **Announcements.jsx:** удалена отправка `company_id` в query params
+- **Requests.jsx:** удалена отправка `company_id` в query params
+
+#### Telegram Bot
+- **request.py:** исправлено `apartment_id` → `building_id` при создании заявки
+- **announcements.py:** исправлено `apartment_id` → `building_id` при получении объявлений
+- **api.py:** изменён путь с `/announcements` на `/bot/announcements`
+
+### 3. Git-репозиторий
+- Инициализирован, все файлы под версионным контролем
+- Первый коммит: `f09b644` — Initial commit
+- Второй коммит: `78d1b7f` — Fix critical bugs
 
 ---
 
 ## ❌ Что осталось сделать
 
-### 1. Создать таблицы tenants и employees в Supabase
-- **Проблема:** таблицы не существуют → 500 ошибка на `/api/v1/tenants` и `/api/v1/employees`
-- **Причина:** Supabase блокирует прямой доступ к PostgreSQL, Management API требует access token
-- **Решение:** создать таблицы вручную через Supabase Dashboard → SQL Editor
+### 1. Настроить .env с реальными ключами
+- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `DEEPSEEK_API_KEY`
+- `INTERNAL_API_KEY`, `JWT_SECRET`
+- `PAYME_MERCHANT_ID`, `PAYME_KEY`
 
-**SQL для выполнения:**
-```sql
-CREATE TABLE IF NOT EXISTS public.tenants (
-    id BIGSERIAL PRIMARY KEY,
-    apartment_id BIGINT NOT NULL REFERENCES public.apartments(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    email TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
-
-CREATE TABLE IF NOT EXISTS public.employees (
-    id BIGSERIAL PRIMARY KEY,
-    company_id BIGINT NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    email TEXT,
-    role TEXT DEFAULT 'employee',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
-```
-
-**Ссылка:** https://supabase.com/dashboard/project/zoezzzvbqrvzbnyaglkt
-
-### 2. Проверить фронтенд (React)
-- Не проверялся
+### 2. Применить Supabase миграции
+- Выполнить `supabase/schema.sql` через Supabase Dashboard → SQL Editor
+- Выполнить миграции из `supabase/migrations/`
 
 ### 3. Проверить мобильное приложение (React Native)
-- Не проверялось
+- Находится в поддиректории `mobile/` (отдельный git-репозиторий)
 
-### 4. Проверить Telegram бот
-- Не проверялся
+### 4. Развернуть на сервере
+- Использовать `deploy.sh` или `deploy_via_ssh.py`
 
 ---
+
+## Структура проекта
+
+```
+domapp/
+├── backend/           # FastAPI backend
+│   ├── main.py        # Точка входа
+│   ├── auth.py        # JWT + internal key auth
+│   ├── db.py          # Supabase REST клиент (+ mock для dev)
+│   ├── models/        # Pydantic схемы
+│   └── routers/       # API роутеры
+├── bot/               # Telegram bot
+│   ├── main.py        # Точка входа
+│   ├── api.py         # HTTP клиент для backend
+│   ├── deepseek.py    # DeepSeek AI интеграция
+│   └── handlers/      # Обработчики команд
+├── frontend/          # React + Vite web-панель
+│   └── src/pages/     # Страницы (Login, Dashboard, Buildings, etc.)
+├── mobile/            # React Native (Expo) приложение
+├── supabase/          # SQL миграции
+├── .env               # Конфигурация (заполнить!)
+└── deploy.sh          # Скрипт деплоя
+```
 
 ## Полезные команды
 
 ```bash
-# Подключение к серверу
-ssh root@51.38.119.218
+# Запуск backend (локально)
+cd domapp
+.\venv\Scripts\uvicorn backend.main:app --reload --port 8000
 
-# Логи backend
-journalctl -u domapp-backend --no-pager -n 50
+# Запуск frontend (локально)
+cd domapp\frontend
+npx vite --port 5173
 
-# Перезапуск backend
-systemctl restart domapp-backend
+# Запуск бота (локально)
+cd domapp
+.\venv\Scripts\python -m bot.main
 
-# Проверка health
-curl http://localhost:8000/health
-
-# Получение токена
-curl -s -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@domapp.uz","password":"test123"}'
-
-# Тест эндпоинта
-curl -s -H "Authorization: Bearer TOKEN" http://localhost:8000/api/v1/apartments
+# Сборка frontend
+cd domapp\frontend
+npx vite build
 ```
-
-## Файлы на сервере
-
-| Файл | Описание |
-|---|---|
-| `/opt/domapp/backend/main.py` | Главный файл FastAPI (исправлен) |
-| `/opt/domapp/backend/routers/residents.py` | Роутер residents (исправлен) |
-| `/opt/domapp/backend/routers/tenants.py` | Роутер tenants (ждёт таблицу) |
-| `/opt/domapp/backend/routers/employees.py` | Роутер employees (ждёт таблицу) |
-| `/opt/domapp/create_tables.sql` | SQL для создания таблиц |
-| `/opt/domapp/.env` | Конфигурация (ключи API) |
