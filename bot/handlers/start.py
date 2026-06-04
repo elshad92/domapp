@@ -75,7 +75,7 @@ async def confirm(update: Update, context):
     user_id = update.effective_user.id
     text = update.message.text.lower()
 
-    if text not in ("да", "yes", "ha"):
+    if text not in ("да", "yes", "ha", "xo'p", "xop"):
         await update.message.reply_text("Регистрация отменена.", reply_markup=MAIN_MENU_RU)
         _temp_data.pop(user_id, None)
         return ConversationHandler.END

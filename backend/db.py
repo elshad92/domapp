@@ -145,20 +145,27 @@ class _TableQuery:
         url = _table_url(self._table)
         params = self._params()
 
-        if self._mode == "insert":
-            resp = self._http.post(url, headers=_headers(), params={"select": self._select_query}, json=self._payload)
-        elif self._mode == "update":
-            resp = self._http.patch(url, headers=_headers(), params=params, json=self._payload)
-        elif self._mode == "delete":
-            resp = self._http.delete(url, headers=_headers(), params=params)
-        else:
-            resp = self._http.get(url, headers=_headers(), params=params)
+        try:
+            if self._mode == "insert":
+                resp = self._http.post(url, headers=_headers(), params={"select": self._select_query}, json=self._payload)
+            elif self._mode == "update":
+                resp = self._http.patch(url, headers=_headers(), params=params, json=self._payload)
+            elif self._mode == "delete":
+                resp = self._http.delete(url, headers=_headers(), params=params)
+            else:
+                resp = self._http.get(url, headers=_headers(), params=params)
 
-        resp.raise_for_status()
-        data = [] if self._mode == "delete" or not resp.content else resp.json()
-        if self._single:
-            data = data[0] if data else None
-        return QueryResult(data=data)
+            resp.raise_for_status()
+            data = [] if self._mode == "delete" or not resp.content else resp.json()
+            if self._single:
+                data = data[0] if data else None
+            return QueryResult(data=data)
+        except httpx.HTTPStatusError as exc:
+            logger.error("Supabase %s %s: %s %s", self._mode, url, exc.response.status_code, exc.response.text)
+            return QueryResult(data=[])
+        except httpx.RequestError as exc:
+            logger.error("Supabase request failed: %s", exc)
+            return QueryResult(data=[])
 
 
 _client: SupabaseClient | None = None

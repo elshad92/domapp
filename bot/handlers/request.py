@@ -48,7 +48,7 @@ async def description_received(update: Update, context):
     _temp_data[user_id]["description"] = update.message.text
 
     await update.message.reply_text(
-        "Хотите добавить фото? (отправьте фото или нажмите «Пропустить»)",
+        "Хотите добавить фото? Отправьте фото или нажмите «✅ Отправить» чтобы продолжить без фото.",
         reply_markup=CONFIRM_RU,
     )
     return PHOTO
@@ -56,6 +56,15 @@ async def description_received(update: Update, context):
 
 async def photo_received(update: Update, context):
     user_id = update.effective_user.id
+    text = update.message.text
+
+    # Handle cancel/skip buttons
+    if text and ("Отмена" in text or "Bekor" in text):
+        _temp_data.pop(user_id, None)
+        await update.message.reply_text("Заявка отменена.", reply_markup=MAIN_MENU_RU)
+        return ConversationHandler.END
+
+    # Handle photo
     photo = update.message.photo
     if photo:
         _temp_data[user_id]["photo"] = photo[-1].file_id
@@ -93,9 +102,17 @@ async def confirm(update: Update, context):
         return ConversationHandler.END
 
     # Создаём заявку
+    building_id = resident.get("building_id")
+    if not building_id:
+        await update.message.reply_text(
+            "❌ Не удалось определить ваш дом. Свяжитесь с УК.",
+            reply_markup=MAIN_MENU_RU,
+        )
+        return ConversationHandler.END
+
     result = await create_request(
         resident_id=resident["id"],
-        building_id=resident.get("building_id", 1),
+        building_id=building_id,
         category=data.get("category", "Другое"),
         description=data.get("description", ""),
         photo_url=data.get("photo"),

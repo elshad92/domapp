@@ -48,7 +48,7 @@ async def create_announcement(data: AnnouncementCreate, company: dict = Depends(
                 if tg_ids:
                     await notify_new_announcement(
                         building_id=data.building_id,
-                        title="Announcement",
+                        title="📢 Новое объявление",
                         content=data.text,
                         resident_telegram_ids=tg_ids,
                     )
