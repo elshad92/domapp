@@ -1,0 +1,15 @@
+[Unit]
+Description=DomApp Telegram Bot
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/domapp
+EnvironmentFile=/opt/domapp/.env
+ExecStart=/opt/domapp/venv/bin/python -m bot.main
+Restart=on-failure
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

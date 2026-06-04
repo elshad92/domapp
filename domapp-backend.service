@@ -1,0 +1,15 @@
+[Unit]
+Description=DomApp Backend (FastAPI)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/domapp
+EnvironmentFile=/opt/domapp/.env
+ExecStart=/opt/domapp/venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
