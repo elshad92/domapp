@@ -173,7 +173,44 @@ def get_supabase() -> SupabaseClient:
             or "CHANGE_ME_" in SUPABASE_URL
             or SUPABASE_SERVICE_KEY.startswith("CHANGE_ME_")
         ):
-            raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be configured")
+            logger.warning("Supabase not configured — using mock client for development")
+            return _MockSupabaseClient()
         _client = SupabaseClient()
         logger.info("Supabase REST client initialized")
     return _client
+
+
+class _MockSupabaseClient:
+    """Mock client that returns empty data for all operations (development only)."""
+
+    def table(self, name: str) -> "_MockTableQuery":
+        return _MockTableQuery()
+
+
+class _MockTableQuery:
+    def select(self, query: str = "*") -> "_MockTableQuery":
+        return self
+    def maybe_single(self) -> "_MockTableQuery":
+        return self
+    def single(self) -> "_MockTableQuery":
+        return self
+    def insert(self, data: Any) -> "_MockTableQuery":
+        return self
+    def update(self, data: Any) -> "_MockTableQuery":
+        return self
+    def delete(self) -> "_MockTableQuery":
+        return self
+    def eq(self, column: str, value: Any) -> "_MockTableQuery":
+        return self
+    def in_(self, column: str, values: list[Any]) -> "_MockTableQuery":
+        return self
+    def gte(self, column: str, value: Any) -> "_MockTableQuery":
+        return self
+    def lte(self, column: str, value: Any) -> "_MockTableQuery":
+        return self
+    def order(self, column: str, desc: bool = False) -> "_MockTableQuery":
+        return self
+    def limit(self, n: int) -> "_MockTableQuery":
+        return self
+    def execute(self) -> QueryResult:
+        return QueryResult(data=[])

@@ -95,7 +95,7 @@ async def get_announcements(building_id: int | None = None) -> list:
     params = {}
     if building_id:
         params["building_id"] = building_id
-    result = await _get("/announcements", params)
+    result = await _get("/bot/announcements", params)
     if isinstance(result, list):
         return result
     return []

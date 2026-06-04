@@ -15,7 +15,7 @@ async def list_announcements(update: Update, context):
 
     # Получаем жильца (чтобы узнать building_id)
     resident = await get_resident_by_telegram(user_id)
-    building_id = resident.get("apartment_id") if resident else None
+    building_id = resident.get("building_id") if resident else None
 
     # Получаем объявления
     announcements = await get_announcements(building_id)

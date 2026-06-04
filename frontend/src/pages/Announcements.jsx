@@ -8,16 +8,14 @@ export default function Announcements() {
   const [buildingId, setBuildingId] = useState('')
   const [filterBuilding, setFilterBuilding] = useState('')
 
-  const companyId = localStorage.getItem('company_id') || 1
-
   useEffect(() => {
     api.get('/announcements')
       .then((res) => setAnnouncements(res.data))
       .catch(() => {})
-    api.get(`/buildings?company_id=${companyId}`)
+    api.get('/buildings')
       .then((res) => setBuildings(res.data))
       .catch(() => {})
-  }, [companyId])
+  }, [])
 
   const handleCreate = async (e) => {
     e.preventDefault()

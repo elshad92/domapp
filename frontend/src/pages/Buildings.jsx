@@ -4,19 +4,17 @@ import api from '../api'
 export default function Buildings() {
   const [buildings, setBuildings] = useState([])
   const [form, setForm] = useState({ address: '', district: '', floors: '', apartments_count: '' })
-  const companyId = parseInt(localStorage.getItem('company_id') || '1')
 
   useEffect(() => {
-    api.get(`/buildings?company_id=${companyId}`)
+    api.get('/buildings')
       .then((res) => setBuildings(res.data))
       .catch(() => {})
-  }, [companyId])
+  }, [])
 
   const handleAdd = async (e) => {
     e.preventDefault()
     try {
       const res = await api.post('/buildings', {
-        company_id: companyId,
         ...form,
         floors: parseInt(form.floors),
         apartments_count: parseInt(form.apartments_count),

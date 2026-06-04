@@ -8,7 +8,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.auth import get_current_company
+from backend.auth import get_current_company, verify_internal_key
 from backend.db import get_supabase
 from backend.models.schemas import AnnouncementCreate, AnnouncementResponse
 from bot.handlers.notifications import notify_new_announcement
@@ -68,6 +68,19 @@ async def list_announcements(
     _assert_company_building(db, company_id, building_id)
 
     query = db.table("announcements").select("*").eq("company_id", company_id)
+    if building_id:
+        query = query.eq("building_id", building_id)
+    return query.order("created_at", desc=True).execute().data
+
+
+@router.get("/bot/announcements", response_model=list[AnnouncementResponse])
+async def list_bot_announcements(
+    building_id: int | None = None,
+    _: bool = Depends(verify_internal_key),
+):
+    """Get announcements for bot (uses internal key instead of JWT)."""
+    db = get_supabase()
+    query = db.table("announcements").select("*")
     if building_id:
         query = query.eq("building_id", building_id)
     return query.order("created_at", desc=True).execute().data

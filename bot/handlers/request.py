@@ -95,7 +95,7 @@ async def confirm(update: Update, context):
     # Создаём заявку
     result = await create_request(
         resident_id=resident["id"],
-        building_id=resident.get("apartment_id", 1),  # временно
+        building_id=resident.get("building_id", 1),
         category=data.get("category", "Другое"),
         description=data.get("description", ""),
         photo_url=data.get("photo"),

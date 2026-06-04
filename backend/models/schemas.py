@@ -26,7 +26,6 @@ class CompanyResponse(BaseModel):
 
 # === Building ===
 class BuildingCreate(BaseModel):
-    company_id: int
     address: str
     district: str
     floors: int

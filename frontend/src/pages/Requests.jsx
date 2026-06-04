@@ -14,16 +14,14 @@ export default function Requests() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterBuilding, setFilterBuilding] = useState('')
 
-  const companyId = localStorage.getItem('company_id') || 1
-
   useEffect(() => {
     api.get('/requests')
       .then((res) => setRequests(res.data))
       .catch(() => {})
-    api.get(`/buildings?company_id=${companyId}`)
+    api.get('/buildings')
       .then((res) => setBuildings(res.data))
       .catch(() => {})
-  }, [companyId])
+  }, [])
 
   const filtered = requests.filter((r) => {
     if (filterStatus && r.status !== filterStatus) return false
