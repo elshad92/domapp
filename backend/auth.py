@@ -34,11 +34,12 @@ if not JWT_SECRET:
     )
 
 
-def create_token(company_id: int, company_name: str) -> str:
+def create_token(company_id: int, company_name: str, plan: str = "basic") -> str:
     """Создать access token."""
     payload = {
         "company_id": company_id,
         "company_name": company_name,
+        "plan": plan,
         "type": "access",
         "jti": str(uuid.uuid4()),
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_ACCESS_EXPIRE_HOURS),
@@ -78,6 +79,52 @@ def get_current_company(
     if payload.get("type") != "access":
         raise HTTPException(status_code=401, detail="Access token required")
     return payload
+
+
+# === Plan-based feature gating ===
+
+PLAN_FEATURES: dict[str, dict] = {
+    "basic": {
+        "max_buildings": 1,
+        "max_residents": 50,
+        "features": ["requests", "announcements", "payments", "dashboard"],
+    },
+    "standard": {
+        "max_buildings": 5,
+        "max_residents": 500,
+        "features": [
+            "requests", "announcements", "payments", "dashboard",
+            "polls", "reports", "employees",
+        ],
+    },
+    "premium": {
+        "max_buildings": 999,
+        "max_residents": 99999,
+        "features": [
+            "requests", "announcements", "payments", "dashboard",
+            "polls", "reports", "employees",
+            "guest_qr", "push_notifications", "telegram_bot",
+            "analytics", "multi_admin", "api_access",
+        ],
+    },
+}
+
+
+def require_feature(feature: str):
+    """Dependency factory — возвращает FastAPI dependency, проверяющую доступ к функции по тарифу."""
+    async def _checker(company: dict = Depends(get_current_company)) -> dict:
+        plan = company.get("plan", "basic")
+        allowed = PLAN_FEATURES.get(plan, PLAN_FEATURES["basic"])["features"]
+        if feature not in allowed:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Функция '{feature}' недоступна на тарифе «{plan}». "
+                    f"Обновите тариф для доступа к этой функции."
+                ),
+            )
+        return company
+    return _checker
 
 
 def verify_internal_key(x_internal_key: Optional[str] = Header(default=None)) -> bool:

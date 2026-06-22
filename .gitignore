@@ -34,3 +34,7 @@ Thumbs.db
 _fix_*.py
 ssh_fix_*.py
 deploy_final.py
+deploy_via_console.sh
+ssh_test.py
+ssl_setup.sh
+backend/logs/

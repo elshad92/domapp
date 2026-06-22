@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.auth import get_current_company
+from backend.auth import get_current_company, require_feature
 from backend.db import get_supabase
 from backend.models.schemas import PollCreate, PollResponse, PollVoteRequest
 from backend.routers.resident_api import get_current_resident
@@ -31,7 +31,7 @@ def _company_building_ids(db, company_id: int) -> list[int]:
 @router.get("/polls", response_model=list[PollResponse])
 async def list_polls(
     building_id: int | None = None,
-    company: dict = Depends(get_current_company),
+    company: dict = Depends(require_feature("polls")),
 ):
     """Список опросов для УК (фильтр по дому)."""
     db = get_supabase()
@@ -47,7 +47,7 @@ async def list_polls(
 @router.post("/polls", response_model=PollResponse)
 async def create_poll(
     data: PollCreate,
-    company: dict = Depends(get_current_company),
+    company: dict = Depends(require_feature("polls")),
 ):
     """Создать новый опрос."""
     db = get_supabase()

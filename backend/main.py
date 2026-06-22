@@ -216,6 +216,7 @@ async def refresh_access_token(data: RefreshRequest):
 
     company_id = payload["company_id"]
     company_name = payload.get("company_name", "")
+    plan = payload.get("plan", "basic")
 
-    new_token = create_token(company_id, company_name)
+    new_token = create_token(company_id, company_name, plan)
     return {"access_token": new_token}

@@ -3,7 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import './i18n'
 import Layout from './components/Layout'
 import AppToaster from './components/AppToaster'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
+import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Buildings from './pages/Buildings'
 import Apartments from './pages/Apartments'
@@ -15,6 +17,7 @@ import Payments from './pages/Payments'
 import Announcements from './pages/Announcements'
 import Reports from './pages/Reports'
 import Polls from './pages/Polls'
+import Docs from './pages/Docs'
 import ResidentLogin from './pages/resident/ResidentLogin'
 import ResidentDashboard from './pages/resident/ResidentDashboard'
 import ResidentRequests from './pages/resident/ResidentRequests'
@@ -43,8 +46,15 @@ export default function App() {
     <>
       <AppToaster />
       <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/register" element={<Login />} />
+        <Route path="/docs" element={<Docs />} />
+        <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+
+        {/* UK Admin routes */}
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/buildings" element={<ProtectedRoute><Buildings /></ProtectedRoute>} />
         <Route path="/apartments" element={<ProtectedRoute><Apartments /></ProtectedRoute>} />
         <Route path="/tenants" element={<ProtectedRoute><Tenants /></ProtectedRoute>} />

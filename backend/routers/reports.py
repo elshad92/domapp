@@ -19,7 +19,7 @@ from reportlab.platypus import (
     Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 
-from backend.auth import get_current_company
+from backend.auth import get_current_company, require_feature
 from backend.db import get_supabase
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def _company_building_ids(db, company_id: int) -> list[int]:
 
 @router.get("/reports/summary")
 async def get_summary(
-    company: dict = Depends(get_current_company),
+    company: dict = Depends(require_feature("reports")),
 ):
     """Общая статистика по компании."""
     db = get_supabase()

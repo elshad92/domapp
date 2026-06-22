@@ -8,7 +8,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.auth import get_current_company
+from backend.auth import get_current_company, PLAN_FEATURES
 from backend.db import get_supabase
 from backend.models.schemas import BuildingCreate, BuildingResponse
 
@@ -57,6 +57,17 @@ async def list_buildings(
 @router.post("/buildings", response_model=BuildingResponse)
 async def create_building(data: BuildingCreate, company: dict = Depends(get_current_company)):
     db = get_supabase()
+    company_id = company["company_id"]
+
+    # Проверка лимита по тарифу
+    plan = company.get("plan", "basic")
+    max_buildings = PLAN_FEATURES.get(plan, PLAN_FEATURES["basic"])["max_buildings"]
+    existing = db.table("buildings").select("id").eq("company_id", company_id).execute()
+    if existing.data and len(existing.data) >= max_buildings:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Лимит тарифа «{plan}»: не более {max_buildings} дом(а). Обновите тариф для добавления новых домов."
+        )
 
     # Проверяем район
     if data.district not in TASHKENT_DISTRICTS:
