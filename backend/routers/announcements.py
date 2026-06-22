@@ -40,18 +40,28 @@ async def create_announcement(data: AnnouncementCreate, company: dict = Depends(
 
     try:
         if data.building_id:
+            # Отправляем жильцам конкретного дома
             apartments = db.table("apartments").select("id").eq("building_id", data.building_id).execute()
             apartment_ids = [row["id"] for row in (apartments.data or [])]
-            if apartment_ids:
-                residents = db.table("residents").select("telegram_id").in_("apartment_id", apartment_ids).execute()
-                tg_ids = [row["telegram_id"] for row in (residents.data or []) if row.get("telegram_id")]
-                if tg_ids:
-                    await notify_new_announcement(
-                        building_id=data.building_id,
-                        title="📢 Новое объявление",
-                        content=data.text,
-                        resident_telegram_ids=tg_ids,
-                    )
+        else:
+            # Отправляем всем жильцам всех домов компании
+            buildings = db.table("buildings").select("id").eq("company_id", company_id).execute()
+            building_ids = [b["id"] for b in (buildings.data or [])]
+            apartment_ids = []
+            for bid in building_ids:
+                apts = db.table("apartments").select("id").eq("building_id", bid).execute()
+                apartment_ids.extend(row["id"] for row in (apts.data or []))
+
+        if apartment_ids:
+            residents = db.table("residents").select("telegram_id").in_("apartment_id", apartment_ids).execute()
+            tg_ids = [row["telegram_id"] for row in (residents.data or []) if row.get("telegram_id")]
+            if tg_ids:
+                await notify_new_announcement(
+                    building_id=data.building_id or 0,
+                    title="📢 Новое объявление",
+                    content=data.text,
+                    resident_telegram_ids=tg_ids,
+                )
     except Exception as exc:
         logger.error("Failed to send announcement notification: %s", exc)
 
@@ -71,6 +81,24 @@ async def list_announcements(
     if building_id:
         query = query.eq("building_id", building_id)
     return query.order("created_at", desc=True).execute().data
+
+
+@router.delete("/announcements/{announcement_id}")
+async def delete_announcement(
+    announcement_id: int,
+    company: dict = Depends(get_current_company),
+):
+    """Удалить объявление."""
+    db = get_supabase()
+    company_id = company["company_id"]
+
+    old = db.table("announcements").select("*").eq("id", announcement_id).eq("company_id", company_id).maybe_single().execute()
+    if not old.data:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+
+    db.table("announcements").delete().eq("id", announcement_id).execute()
+    logger.info("Announcement %s deleted by company_id=%s", announcement_id, company_id)
+    return {"ok": True}
 
 
 @router.get("/bot/announcements", response_model=list[AnnouncementResponse])

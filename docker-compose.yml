@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: domapp-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - domapp-net
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: domapp-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - domapp-net
+
+  bot:
+    build:
+      context: ./bot
+    container_name: domapp-bot
+    env_file:
+      - ./.env
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - domapp-net
+
+networks:
+  domapp-net:
+    driver: bridge

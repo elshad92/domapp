@@ -24,7 +24,14 @@ def _company_building_ids(db, company_id: int) -> list[int]:
 
 
 def _ensure_company_building(db, company_id: int, building_id: int) -> None:
-    allowed = db.table("buildings").select("id").eq("id", building_id).eq("company_id", company_id).maybe_single().execute()
+    allowed = (
+        db.table("buildings")
+        .select("id")
+        .eq("id", building_id)
+        .eq("company_id", company_id)
+        .maybe_single()
+        .execute()
+    )
     if not allowed.data:
         raise HTTPException(status_code=403, detail="Building is not available for this company")
 
@@ -49,6 +56,10 @@ async def list_requests(
     status: str | None = None,
     category: str | None = None,
     resident_id: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
     company: dict = Depends(get_current_company),
 ):
     db = get_supabase()
@@ -71,8 +82,12 @@ async def list_requests(
         query = query.eq("category", category)
     if resident_id is not None:
         query = query.eq("resident_id", resident_id)
+    if date_from:
+        query = query.gte("created_at", date_from)
+    if date_to:
+        query = query.lte("created_at", date_to)
 
-    return query.order("created_at", desc=True).execute().data
+    return query.order("created_at", desc=True).limit(limit).execute().data
 
 
 @router.get("/bot/requests", response_model=list[RequestResponse])
@@ -112,6 +127,9 @@ async def update_request_status(
             update_data["resolved_at"] = datetime.now(timezone.utc).isoformat()
     if data.comment is not None:
         update_data["comment"] = data.comment
+    if data.assigned_to is not None:
+        update_data["assigned_to"] = data.assigned_to
+        update_data["assigned_at"] = datetime.now(timezone.utc).isoformat()
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
@@ -140,3 +158,22 @@ async def update_request_status(
             logger.error("Failed to send notification for request %s: %s", request_id, exc)
 
     return updated
+
+
+@router.delete("/requests/{request_id}")
+async def delete_request(
+    request_id: int,
+    company: dict = Depends(get_current_company),
+):
+    """Удалить заявку (только для УК)."""
+    db = get_supabase()
+    company_id = company["company_id"]
+
+    old = db.table("requests").select("*").eq("id", request_id).maybe_single().execute()
+    if not old.data:
+        raise HTTPException(status_code=404, detail="Request not found")
+    _ensure_company_building(db, company_id, old.data["building_id"])
+
+    result = db.table("requests").delete().eq("id", request_id).execute()
+    logger.info("Request %s deleted by company_id=%s", request_id, company_id)
+    return {"ok": True}

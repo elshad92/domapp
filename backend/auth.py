@@ -1,5 +1,6 @@
 """
 JWT authentication for management companies and internal API key checks for the bot.
+Supports access + refresh tokens.
 """
 
 from __future__ import annotations
@@ -7,6 +8,7 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -20,20 +22,37 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
-JWT_SECRET = os.getenv("JWT_SECRET", "")
+JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRE_HOURS = 24 * 7
+JWT_ACCESS_EXPIRE_HOURS = 24 * 7  # 7 дней
+JWT_REFRESH_EXPIRE_DAYS = 30      # 30 дней
 
-if not JWT_SECRET or JWT_SECRET == "change-me-in-production" or JWT_SECRET.startswith("CHANGE_ME_"):
-    logger.warning("JWT_SECRET is not configured with a strong value — using default for development only!")
-    JWT_SECRET = "dev-secret-do-not-use-in-production"
+if not JWT_SECRET:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set! "
+        "Set a strong secret in .env or environment before starting the server."
+    )
 
 
 def create_token(company_id: int, company_name: str) -> str:
+    """Создать access token."""
     payload = {
         "company_id": company_id,
         "company_name": company_name,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS),
+        "type": "access",
+        "jti": str(uuid.uuid4()),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_ACCESS_EXPIRE_HOURS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def create_refresh_token(company_id: int) -> str:
+    """Создать refresh token."""
+    payload = {
+        "company_id": company_id,
+        "type": "refresh",
+        "jti": str(uuid.uuid4()),
+        "exp": datetime.now(timezone.utc) + timedelta(days=JWT_REFRESH_EXPIRE_DAYS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -54,7 +73,11 @@ def decode_token(token: str) -> dict:
 def get_current_company(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
-    return decode_token(credentials.credentials)
+    """Получить текущую компанию из access token."""
+    payload = decode_token(credentials.credentials)
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Access token required")
+    return payload
 
 
 def verify_internal_key(x_internal_key: Optional[str] = Header(default=None)) -> bool:

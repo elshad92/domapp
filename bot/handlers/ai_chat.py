@@ -165,6 +165,31 @@ async def handle_message(update: Update, context):
     return CHAT
 
 
+async def handle_photo(update: Update, context):
+    """Обработать фото от пользователя."""
+    user_id = update.effective_user.id
+    photo = update.message.photo[-1]  # берём самое большое фото
+    file = await photo.get_file()
+    file_url = file.file_path
+
+    text = f"📸 Пользователь отправил фото: {file_url}\n\nОпишите проблему на фото текстом, чтобы я мог создать заявку."
+
+    # Отправляем "печатает..."
+    await update.message.chat.send_action(action="typing")
+
+    history = _chat_history.get(user_id, [])
+    user_context = context.user_data.get("ai_context", {})
+
+    reply = await ask_deepseek(text, history, user_context)
+
+    history.append({"role": "user", "content": f"[Фото: {file_url}]"})
+    history.append({"role": "assistant", "content": reply})
+    _chat_history[user_id] = history
+
+    await update.message.reply_text(reply, reply_markup=CHAT_KEYBOARD)
+    return CHAT
+
+
 async def cancel(update: Update, context):
     """Отмена и выход в меню."""
     user_id = update.effective_user.id

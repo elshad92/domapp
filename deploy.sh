@@ -1,45 +1,91 @@
-#!/bin/bash
-# DomApp — deploy.sh
-# Запуск: bash deploy.sh
-# VPS: AlmaLinux 9, /opt/domapp
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+# ============================================
+# DomApp Deploy Script
+# Deploys backend, frontend, and bot via Docker
+# ============================================
 
-APP_DIR=/opt/domapp
-DOMAIN=${DOMAIN:-domapp.uz}
-BOT_SERVICE=domapp-bot
-BACKEND_SERVICE=domapp-backend
+SERVER="root@51.38.119.218"
+REMOTE_DIR="/opt/domapp"
+SSH_PASSWORD="DpXWg9oz38fO"
 
-echo "=== DomApp Deploy ==="
+echo "============================================"
+echo "  DomApp Deploy"
+echo "  Server: ${SERVER}"
+echo "  Remote: ${REMOTE_DIR}"
+echo "============================================"
 
-# 1. Обновить код
-cd $APP_DIR
-git pull origin main
+# Check for sshpass
+SSHPASS_AVAILABLE=false
+if command -v sshpass &>/dev/null; then
+  SSHPASS_AVAILABLE=true
+  echo "[INFO] sshpass detected, using password authentication"
+else
+  echo "[WARN] sshpass not found. Attempting SSH key authentication..."
+fi
 
-# 2. Backend — зависимости
-cd $APP_DIR
-source venv/bin/activate
-pip install -r backend/requirements.txt --quiet
+# Step 1: Rsync project to server (excluding unnecessary files)
+echo ""
+echo "[1/4] Rsyncing project to server..."
 
-# 3. Frontend — сборка
-cd $APP_DIR/frontend
-npm ci --silent
-npm run build
+RSYNC_CMD="rsync -avz --delete \
+  --exclude 'node_modules' \
+  --exclude '__pycache__' \
+  --exclude '.env' \
+  --exclude '.git' \
+  --exclude '*.pyc' \
+  --exclude '.DS_Store' \
+  ./ \"${SERVER}:${REMOTE_DIR}/\""
 
-# 4. Mobile — установка зависимостей (сборка через EAS)
-cd $APP_DIR/mobile
-npm ci --silent
+if [ "$SSHPASS_AVAILABLE" = true ]; then
+  SSHPASS="${SSH_PASSWORD}" sshpass -e eval "${RSYNC_CMD}"
+else
+  eval "${RSYNC_CMD}"
+fi
 
-# 5. Миграции БД
-cd $APP_DIR
-source venv/bin/activate
-python run_migrations.py
+# Step 2: SSH into server and deploy
+echo ""
+echo "[2/4] Connecting to server..."
 
-# 6. Перезапустить сервисы
-systemctl daemon-reload
-systemctl restart $BACKEND_SERVICE
-systemctl restart $BOT_SERVICE
+SSH_SCRIPT=$(cat << 'ENDSSH'
+  set -euo pipefail
 
-echo "=== Deploy OK ==="
-systemctl status $BACKEND_SERVICE --no-pager
-systemctl status $BOT_SERVICE --no-pager
+  cd /opt/domapp
+
+  # Step 3: Copy .env.production to .env if .env doesn't exist
+  echo "[3/4] Setting up environment..."
+  if [ ! -f .env ]; then
+    if [ -f .env.production ]; then
+      cp .env.production .env
+      echo "  -> Created .env from .env.production"
+    else
+      echo "  -> ERROR: .env.production not found!"
+      exit 1
+    fi
+  else
+    echo "  -> .env already exists, skipping"
+  fi
+
+  # Step 4: Pull latest images and restart containers
+  echo "[4/4] Deploying with Docker..."
+  docker-compose down || true
+  docker-compose up --build -d
+
+  # Print status
+  echo ""
+  echo "============================================"
+  echo "  Deployment complete!"
+  echo "============================================"
+  docker-compose ps
+ENDSSH
+)
+
+if [ "$SSHPASS_AVAILABLE" = true ]; then
+  SSHPASS="${SSH_PASSWORD}" sshpass -e ssh -o StrictHostKeyChecking=no "${SERVER}" "${SSH_SCRIPT}"
+else
+  ssh -o StrictHostKeyChecking=no "${SERVER}" "${SSH_SCRIPT}"
+fi
+
+echo ""
+echo "Done."

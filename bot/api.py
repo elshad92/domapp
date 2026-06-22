@@ -1,8 +1,10 @@
 """
 DomApp Bot — API клиент для backend
+С retry логикой и таймаутами
 """
 
 import os
+import asyncio
 import logging
 import httpx
 from dotenv import load_dotenv
@@ -14,43 +16,78 @@ logger = logging.getLogger(__name__)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0  # секунд
+
 
 async def _post(path: str, data: dict) -> dict | None:
-    """POST запрос к backend с Internal API Key."""
+    """POST запрос к backend с Internal API Key и retry."""
     url = f"{BACKEND_URL}/api/v1{path}"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                url,
-                json=data,
-                headers={"X-Internal-Key": INTERNAL_API_KEY},
-            )
-            if resp.status_code in (200, 201):
-                return resp.json()
-            logger.warning("API POST %s: %s %s", url, resp.status_code, resp.text)
-            return None
-    except Exception as e:
-        logger.error("API POST %s error: %s", url, e)
-        return None
+    last_error = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    url,
+                    json=data,
+                    headers={"X-Internal-Key": INTERNAL_API_KEY},
+                )
+                if resp.status_code in (200, 201):
+                    return resp.json()
+                logger.warning(
+                    "API POST %s (attempt %d/%d): %s %s",
+                    url, attempt, MAX_RETRIES, resp.status_code, resp.text[:200],
+                )
+                if resp.status_code < 500:
+                    return None  # 4xx — не retry
+        except httpx.TimeoutException as e:
+            last_error = e
+            logger.warning("API POST %s timeout (attempt %d/%d)", url, attempt, MAX_RETRIES)
+        except httpx.RequestError as e:
+            last_error = e
+            logger.warning("API POST %s error (attempt %d/%d): %s", url, attempt, MAX_RETRIES, e)
+
+        if attempt < MAX_RETRIES:
+            await asyncio.sleep(RETRY_DELAY * attempt)
+
+    logger.error("API POST %s failed after %d attempts: %s", url, MAX_RETRIES, last_error)
+    return None
 
 
 async def _get(path: str, params: dict | None = None) -> list | dict | None:
-    """GET запрос к backend с Internal API Key."""
+    """GET запрос к backend с Internal API Key и retry."""
     url = f"{BACKEND_URL}/api/v1{path}"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                url,
-                params=params,
-                headers={"X-Internal-Key": INTERNAL_API_KEY},
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            logger.warning("API GET %s: %s %s", url, resp.status_code, resp.text)
-            return None
-    except Exception as e:
-        logger.error("API GET %s error: %s", url, e)
-        return None
+    last_error = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    url,
+                    params=params,
+                    headers={"X-Internal-Key": INTERNAL_API_KEY},
+                )
+                if resp.status_code == 200:
+                    return resp.json()
+                logger.warning(
+                    "API GET %s (attempt %d/%d): %s %s",
+                    url, attempt, MAX_RETRIES, resp.status_code, resp.text[:200],
+                )
+                if resp.status_code < 500:
+                    return None
+        except httpx.TimeoutException as e:
+            last_error = e
+            logger.warning("API GET %s timeout (attempt %d/%d)", url, attempt, MAX_RETRIES)
+        except httpx.RequestError as e:
+            last_error = e
+            logger.warning("API GET %s error (attempt %d/%d): %s", url, attempt, MAX_RETRIES, e)
+
+        if attempt < MAX_RETRIES:
+            await asyncio.sleep(RETRY_DELAY * attempt)
+
+    logger.error("API GET %s failed after %d attempts: %s", url, MAX_RETRIES, last_error)
+    return None
 
 
 async def create_resident(telegram_id: int, name: str, phone: str, apartment_id: int) -> dict | None:

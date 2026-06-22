@@ -1,54 +1,70 @@
 """
-DomApp — Status handler (просмотр заявок жильца)
+DomApp Bot — Status handler (просмотр статуса заявок)
 """
 
 import logging
 from telegram import Update
+from telegram.ext import ContextTypes
+from bot.api import get_resident_by_telegram, get_requests
 from bot.keyboards import MAIN_MENU_RU
-from bot.api import get_requests, get_resident_by_telegram
 
 logger = logging.getLogger(__name__)
 
-STATUS_LABELS = {
-    "new": "🟡 Новая",
-    "in_progress": "🔵 В работе",
-    "done": "🟢 Выполнено",
+STATUS_EMOJI = {
+    "new": "🆕",
+    "in_progress": "�",
+    "done": "✅",
+}
+
+STATUS_TEXT = {
+    "new": "Новая",
+    "in_progress": "В работе",
+    "done": "Выполнена",
 }
 
 
-async def list_requests(update: Update, context):
-    user_id = update.effective_user.id
+async def list_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать список заявок жильца."""
+    telegram_id = update.effective_user.id
 
-    # Получаем жильца
-    resident = await get_resident_by_telegram(user_id)
+    resident = await get_resident_by_telegram(telegram_id)
     if not resident:
         await update.message.reply_text(
-            "❌ Вы не зарегистрированы. Нажмите /start для регистрации.",
+            "❌ Вы не зарегистрированы. Используйте /start для регистрации.",
             reply_markup=MAIN_MENU_RU,
         )
         return
 
-    # Получаем заявки
-    requests = await get_requests(resident["id"])
+    resident_id = resident.get("id")
+    requests = await get_requests(resident_id)
 
     if not requests:
         await update.message.reply_text(
-            "📋 Ваши заявки:\n\n"
-            "Пока нет заявок. Нажмите «Подать заявку», чтобы создать новую.",
+            "📋 У вас пока нет заявок.\n\n"
+            "Чтобы создать заявку, нажмите «Подать заявку» в меню.",
             reply_markup=MAIN_MENU_RU,
         )
         return
 
-    lines = ["📋 Ваши заявки:\n"]
-    for r in requests:
-        status = STATUS_LABELS.get(r.get("status", ""), r.get("status", ""))
-        created = r.get("created_at", "")[:10] if r.get("created_at") else ""
-        desc = r.get("description", "")[:50]
-        lines.append(f"#{r['id']} {status} — {desc}")
-        if created:
-            lines[-1] += f" ({created})"
+    lines = ["📋 <b>Ваши заявки:</b>\n"]
+    for req in requests[-10:]:  # последние 10
+        status = req.get("status", "new")
+        emoji = STATUS_EMOJI.get(status, "❓")
+        status_text = STATUS_TEXT.get(status, status)
+        category = req.get("category", "—")
+        description = req.get("description", "")[:60]
+        created = req.get("created_at", "")[:10]
+
+        lines.append(
+            f"{emoji} <b>#{req['id']}</b> | {category}\n"
+            f"   {description}\n"
+            f"   Статус: {status_text} | {created}\n"
+        )
+
+    lines.append("\nЧтобы создать новую заявку, нажмите «Подать заявку».")
 
     await update.message.reply_text(
         "\n".join(lines),
+        parse_mode="HTML",
         reply_markup=MAIN_MENU_RU,
     )

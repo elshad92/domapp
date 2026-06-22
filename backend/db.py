@@ -147,7 +147,12 @@ class _TableQuery:
 
         try:
             if self._mode == "insert":
-                resp = self._http.post(url, headers=_headers(), params={"select": self._select_query}, json=self._payload)
+                resp = self._http.post(
+                    url,
+                    headers=_headers(),
+                    params={"select": self._select_query},
+                    json=self._payload,
+                )
             elif self._mode == "update":
                 resp = self._http.patch(url, headers=_headers(), params=params, json=self._payload)
             elif self._mode == "delete":
@@ -161,7 +166,20 @@ class _TableQuery:
                 data = data[0] if data else None
             return QueryResult(data=data)
         except httpx.HTTPStatusError as exc:
-            logger.error("Supabase %s %s: %s %s", self._mode, url, exc.response.status_code, exc.response.text)
+            status = exc.response.status_code
+            if status == 404:
+                logger.warning("Supabase table '%s' not found (404) at %s — table may not exist yet", self._table, url)
+            elif status == 406:
+                logger.warning("Supabase table '%s' returned 406 at %s — column may not exist", self._table, url)
+            else:
+                logger.error(
+                    "Supabase %s %s (table=%s): %s %s",
+                    self._mode,
+                    url,
+                    self._table,
+                    status,
+                    exc.response.text,
+                )
             return QueryResult(data=[])
         except httpx.RequestError as exc:
             logger.error("Supabase request failed: %s", exc)

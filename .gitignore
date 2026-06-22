@@ -1,6 +1,7 @@
 # Env
 .env
 .env.local
+.env.production
 
 # Python
 __pycache__/
@@ -8,6 +9,7 @@ __pycache__/
 *.egg-info/
 dist/
 venv/
+venv*/
 .venv/
 
 # Node
@@ -27,3 +29,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Temp / fix scripts
+_fix_*.py
+ssh_fix_*.py
+deploy_final.py
