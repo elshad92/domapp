@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 jobs:
   test-backend:
@@ -80,7 +80,7 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     needs: [test-backend, lint-backend, build-frontend]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     
     steps:
       - uses: actions/checkout@v4

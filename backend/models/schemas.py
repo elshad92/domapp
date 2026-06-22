@@ -242,6 +242,10 @@ class PollResponse(BaseModel):
     created_at: datetime
 
 
+class ResidentPollResponse(PollResponse):
+    voted: bool = False
+
+
 class PollVoteRequest(BaseModel):
     poll_id: int
     resident_id: int

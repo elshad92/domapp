@@ -174,6 +174,6 @@ async def delete_request(
         raise HTTPException(status_code=404, detail="Request not found")
     _ensure_company_building(db, company_id, old.data["building_id"])
 
-    result = db.table("requests").delete().eq("id", request_id).execute()
+    db.table("requests").delete().eq("id", request_id).execute()
     logger.info("Request %s deleted by company_id=%s", request_id, company_id)
     return {"ok": True}

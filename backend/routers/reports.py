@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import io
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -246,7 +246,7 @@ async def download_report(
     elements = []
 
     # Title
-    elements.append(Paragraph(f"DomApp — Отчёт по заявкам", styles["Title"]))
+    elements.append(Paragraph("DomApp — Отчёт по заявкам", styles["Title"]))
     elements.append(Spacer(1, 6 * mm))
     elements.append(Paragraph(f"<b>Компания:</b> {company_data.get('name', company_name)}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Email:</b> {company_data.get('email', '—')}", styles["Normal"]))

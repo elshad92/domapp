@@ -12,12 +12,13 @@ from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel
 
 from backend.routers import announcements, buildings, payments, requests
 from backend.routers import auth, reports, residents, tenants, employees
 from backend.routers import companies, apartments
 from backend.routers import resident_auth, resident_api, click_payments, chat, polls, guest_qr
-from backend.auth import JWT_SECRET
+from backend.auth import JWT_SECRET, create_token, decode_token
 from backend.db import get_supabase
 
 # Configure logging
@@ -194,10 +195,6 @@ async def health_check():
 
 
 # === Refresh token endpoint ===
-from pydantic import BaseModel
-from backend.auth import decode_token, create_token
-
-
 class RefreshRequest(BaseModel):
     refresh_token: str
 

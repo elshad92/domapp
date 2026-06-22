@@ -6,15 +6,16 @@ POST /api/v1/resident/auth/verify-code — подтвердить код и по
 
 import logging
 import os
-import random
+import secrets
 import uuid
+import hmac
 from datetime import datetime, timedelta, timezone
 
 import httpx
 import jwt
 from fastapi import APIRouter, HTTPException
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from backend.db import get_supabase
 from backend.models.schemas import ResidentLoginRequest, ResidentLoginResponse
@@ -30,6 +31,7 @@ RESIDENT_JWT_EXPIRE_DAYS = 30
 # SMS code store (in-memory; для production заменить на Redis/DB)
 _sms_codes: dict[str, dict] = {}
 SMS_CODE_EXPIRE_MINUTES = 5
+SMS_CODE_MAX_ATTEMPTS = int(os.getenv("SMS_CODE_MAX_ATTEMPTS", "5"))
 
 
 # === PlayMobile.uz SMS Gateway ===
@@ -42,10 +44,10 @@ PLAYMOBILE_ORIGINATOR = os.getenv("PLAYMOBILE_ORIGINATOR", "3700")
 async def send_sms_via_playmobile(phone: str, code: str) -> bool:
     """
     Отправить SMS через PlayMobile.uz API.
-    Если PLAYMOBILE_LOGIN не настроен — просто логируем код (режим разработки).
+    Если PLAYMOBILE_LOGIN не настроен — имитируем отправку без раскрытия кода в логах.
     """
     if not PLAYMOBILE_LOGIN or not PLAYMOBILE_PASSWORD:
-        logger.info("🔐 [DEV MODE] SMS code for %s: %s", phone, code)
+        logger.info("SMS provider is not configured; dev-mode SMS accepted for %s", phone)
         return True
 
     payload = {
@@ -71,7 +73,7 @@ async def send_sms_via_playmobile(phone: str, code: str) -> bool:
                 auth=(PLAYMOBILE_LOGIN, PLAYMOBILE_PASSWORD),
             )
             if resp.status_code == 200:
-                logger.info("SMS sent to %s (code: %s)", phone, code)
+                logger.info("SMS sent to %s", phone)
                 return True
             else:
                 logger.error("PlayMobile error: %s %s", resp.status_code, resp.text)
@@ -171,12 +173,13 @@ async def send_code(data: SendCodeRequest):
         raise HTTPException(status_code=404, detail="Жилец с таким телефоном не найден")
 
     # Генерируем 6-значный код
-    code = str(random.randint(100000, 999999))
+    code = f"{secrets.randbelow(900000) + 100000}"
 
     # Сохраняем код в памяти
     _sms_codes[phone] = {
         "code": code,
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=SMS_CODE_EXPIRE_MINUTES),
+        "attempts": 0,
     }
 
     # Отправляем SMS
@@ -204,7 +207,12 @@ async def verify_code(data: VerifyCodeRequest):
         del _sms_codes[phone]
         raise HTTPException(status_code=400, detail="Код истёк. Запросите новый.")
 
-    if stored["code"] != data.code:
+    stored["attempts"] = int(stored.get("attempts", 0)) + 1
+    if stored["attempts"] > SMS_CODE_MAX_ATTEMPTS:
+        del _sms_codes[phone]
+        raise HTTPException(status_code=429, detail="Слишком много попыток. Запросите новый код.")
+
+    if not hmac.compare_digest(stored["code"], data.code):
         raise HTTPException(status_code=400, detail="Неверный код подтверждения")
 
     # Код верный — удаляем из хранилища
@@ -263,6 +271,9 @@ async def resident_login(data: ResidentLoginRequest):
     """
     Вход жильца по номеру телефона (без SMS — для тестирования).
     """
+    if os.getenv("ALLOW_LEGACY_RESIDENT_LOGIN") != "1":
+        raise HTTPException(status_code=404, detail="Endpoint disabled")
+
     db = get_supabase()
     phone = data.phone
 

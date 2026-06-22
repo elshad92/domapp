@@ -9,7 +9,6 @@ from __future__ import annotations
 import base64
 import time
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -91,6 +90,8 @@ class TestPaymeWebhook:
             # 2. _find_by_account: payment found
             {"id": 1, "resident_id": 42, "period": "2026-06",
              "amount": "150000.00", "status": "pending"},
+            # 3. update result
+            [{"id": 1, "payme_transaction_id": "txn_001"}],
         ]
 
         payload = {
@@ -142,6 +143,8 @@ class TestPaymeWebhook:
             {"id": 1, "resident_id": 42, "period": "2026-06",
              "amount": "150000.00", "status": "pending",
              "payme_transaction_id": "txn_001"},
+            # update result
+            [{"id": 1, "status": "paid"}],
         ]
 
         payload = {

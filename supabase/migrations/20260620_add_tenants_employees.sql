@@ -5,7 +5,7 @@ ALTER TABLE buildings
     ADD COLUMN IF NOT EXISTS name TEXT;
 
 ALTER TABLE payments
-    ADD COLUMN IF NOT EXISTS payme_cancel_reason INT;
+    ADD COLUMN IF NOT EXISTS payme_cancel_reason TEXT;
 
 CREATE TABLE IF NOT EXISTS tenants (
     id BIGSERIAL PRIMARY KEY,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS employees (
     name TEXT NOT NULL,
     phone TEXT NOT NULL,
     email TEXT,
-    role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin', 'manager', 'employee')),
+    role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin', 'manager', 'employee', 'accountant', 'dispatcher')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

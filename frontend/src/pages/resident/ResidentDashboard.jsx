@@ -39,10 +39,15 @@ export default function ResidentDashboard() {
         window.location.href = '/resident';
         return;
       }
+      if (!profileRes.ok || !paymentsRes.ok || !requestsRes.ok) {
+        throw new Error('Resident dashboard request failed');
+      }
 
       setProfile(await profileRes.json());
-      setPayments(await paymentsRes.json());
-      setRequests(await requestsRes.json());
+      const paymentsData = await paymentsRes.json();
+      const requestsData = await requestsRes.json();
+      setPayments(Array.isArray(paymentsData) ? paymentsData : []);
+      setRequests(Array.isArray(requestsData) ? requestsData : []);
     } catch (err) {
       toast.error(t('common.error'));
     } finally {

@@ -38,7 +38,7 @@ async def get_chat_messages(
         db.table("request_messages")
         .select("*")
         .eq("request_id", request_id)
-        .order("created_at", asc=True)
+        .order("created_at", desc=False)
         .execute()
     )
     return result.data or []

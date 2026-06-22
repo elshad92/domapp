@@ -3,7 +3,6 @@ DomApp — Employees (сотрудники УК) CRUD
 """
 
 import logging
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -12,6 +11,18 @@ from backend.auth import get_current_company
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["employees"])
+
+
+def _get_company_employee(db, company_id: int, employee_id: int) -> dict | None:
+    return (
+        db.table("employees")
+        .select("*")
+        .eq("id", employee_id)
+        .eq("company_id", company_id)
+        .maybe_single()
+        .execute()
+        .data
+    )
 
 
 class EmployeeCreate(BaseModel):
@@ -74,7 +85,15 @@ async def update_employee(
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
-    result = db.table("employees").update(update_data).eq("id", employee_id).execute()
+    if not _get_company_employee(db, company["company_id"], employee_id):
+        raise HTTPException(status_code=404, detail="Employee not found")
+    result = (
+        db.table("employees")
+        .update(update_data)
+        .eq("id", employee_id)
+        .eq("company_id", company["company_id"])
+        .execute()
+    )
     if not result.data:
         raise HTTPException(status_code=404, detail="Employee not found")
     return result.data[0]
@@ -86,7 +105,7 @@ async def delete_employee(
     company: dict = Depends(get_current_company),
 ):
     db = get_supabase()
-    result = db.table("employees").delete().eq("id", employee_id).execute()
-    if not result.data:
+    if not _get_company_employee(db, company["company_id"], employee_id):
         raise HTTPException(status_code=404, detail="Employee not found")
+    db.table("employees").delete().eq("id", employee_id).eq("company_id", company["company_id"]).execute()
     return {"ok": True}

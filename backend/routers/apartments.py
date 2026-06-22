@@ -13,15 +13,32 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["apartments"])
 
 
+def _get_company_building_ids(db, company_id: int) -> list[int]:
+    result = db.table("buildings").select("id").eq("company_id", company_id).execute()
+    return [row["id"] for row in (result.data or [])]
+
+
+def _get_company_apartment(db, company_id: int, apartment_id: int) -> dict | None:
+    allowed_building_ids = _get_company_building_ids(db, company_id)
+    if not allowed_building_ids:
+        return None
+    apartment = db.table("apartments").select("*").eq("id", apartment_id).maybe_single().execute()
+    if not apartment.data or apartment.data.get("building_id") not in allowed_building_ids:
+        return None
+    return apartment.data
+
+
 class ApartmentCreate(BaseModel):
     building_id: int
     number: str
     floor: int
+    area: float | None = None
 
 
 class ApartmentUpdate(BaseModel):
     number: str | None = None
     floor: int | None = None
+    area: float | None = None
 
 
 class ApartmentResponse(BaseModel):
@@ -29,6 +46,7 @@ class ApartmentResponse(BaseModel):
     building_id: int
     number: str
     floor: int
+    area: float | None = None
 
 
 @router.get("/apartments", response_model=list[ApartmentResponse])
@@ -99,6 +117,8 @@ async def update_apartment(
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
+    if not _get_company_apartment(db, company["company_id"], apartment_id):
+        raise HTTPException(status_code=404, detail="Apartment not found")
     result = db.table("apartments").update(update_data).eq("id", apartment_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Apartment not found")
@@ -111,7 +131,7 @@ async def delete_apartment(
     company: dict = Depends(get_current_company),
 ):
     db = get_supabase()
-    result = db.table("apartments").delete().eq("id", apartment_id).execute()
-    if not result.data:
+    if not _get_company_apartment(db, company["company_id"], apartment_id):
         raise HTTPException(status_code=404, detail="Apartment not found")
+    db.table("apartments").delete().eq("id", apartment_id).execute()
     return {"ok": True}

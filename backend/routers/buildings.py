@@ -57,7 +57,6 @@ async def list_buildings(
 @router.post("/buildings", response_model=BuildingResponse)
 async def create_building(data: BuildingCreate, company: dict = Depends(get_current_company)):
     db = get_supabase()
-    company_id = company["company_id"]
 
     # Проверяем район
     if data.district not in TASHKENT_DISTRICTS:

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -122,9 +121,9 @@ class _TableQuery:
         self._filters.append((column, f"lte.{value}"))
         return self
 
-    def order(self, column: str, desc: bool = False) -> "_TableQuery":
+    def order(self, column: str, desc: bool = False, asc: bool | None = None) -> "_TableQuery":
         self._order_col = column
-        self._order_desc = desc
+        self._order_desc = not asc if asc is not None else desc
         return self
 
     def limit(self, n: int) -> "_TableQuery":
@@ -233,7 +232,7 @@ class _MockTableQuery:
         return self
     def lte(self, column: str, value: Any) -> "_MockTableQuery":
         return self
-    def order(self, column: str, desc: bool = False) -> "_MockTableQuery":
+    def order(self, column: str, desc: bool = False, asc: bool | None = None) -> "_MockTableQuery":
         return self
     def limit(self, n: int) -> "_MockTableQuery":
         return self

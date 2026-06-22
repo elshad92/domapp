@@ -8,10 +8,8 @@ import json
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import qrcode
-from qrcode.image.pil import PilImage
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +23,7 @@ def generate_guest_qr(
     building_address: str,
     apartment_number: str,
     resident_name: str,
+    resident_id: int | None = None,
     valid_hours: int = GUEST_CODE_EXPIRE_HOURS,
 ) -> tuple[str, bytes]:
     """
@@ -65,6 +64,7 @@ def generate_guest_qr(
     _guest_codes[code_id] = {
         "code_id": code_id,
         "building_id": building_id,
+        "resident_id": resident_id,
         "building_address": building_address,
         "apartment_number": apartment_number,
         "resident_name": resident_name,
@@ -113,10 +113,13 @@ def verify_guest_code(code_id: str) -> dict:
     }
 
 
-def deactivate_guest_code(code_id: str) -> bool:
+def deactivate_guest_code(code_id: str, resident_id: int | None = None) -> bool:
     """Деактивировать гостевой код."""
-    if code_id in _guest_codes:
-        _guest_codes[code_id]["is_active"] = False
-        logger.info("Guest code deactivated: %s", code_id)
-        return True
-    return False
+    code = _guest_codes.get(code_id)
+    if not code:
+        return False
+    if resident_id is not None and code.get("resident_id") != resident_id:
+        return False
+    code["is_active"] = False
+    logger.info("Guest code deactivated: %s", code_id)
+    return True

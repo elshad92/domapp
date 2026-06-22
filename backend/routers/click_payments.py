@@ -13,7 +13,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from backend.db import get_supabase
 
@@ -202,11 +202,13 @@ async def click_webhook(request: Request):
             return _err(ERR_INVALID_AMOUNT, f"Expected {expected_tiyin} tiyin")
 
         now = _now_ms()
-        db.table("payments").update({
+        update_result = db.table("payments").update({
             "click_transaction_id": click_trans_id,
             "click_create_time": now,
             "click_state": STATE_CREATED,
         }).eq("id", payment["id"]).execute()
+        if not update_result.data:
+            return _err(ERR_TX_NOT_FOUND, "Failed to create transaction")
 
         return _ok({
             "click_trans_id": click_trans_id,
@@ -231,11 +233,13 @@ async def click_webhook(request: Request):
 
         now = _now_ms()
         paid_at = datetime.now(timezone.utc).isoformat()
-        db.table("payments").update({
+        update_result = db.table("payments").update({
             "status": "paid",
             "paid_at": paid_at,
             "click_state": STATE_PERFORMED,
         }).eq("id", payment["id"]).execute()
+        if not update_result.data:
+            return _err(ERR_TX_NOT_FOUND, "Failed to perform transaction")
 
         logger.info("Click payment performed: id=%s click_trans=%s", payment["id"], click_trans_id)
         return _ok({
@@ -254,11 +258,13 @@ async def click_webhook(request: Request):
 
         now = _now_ms()
         if payment["status"] == "paid":
-            db.table("payments").update({
+            update_result = db.table("payments").update({
                 "click_state": STATE_CANCELLED_AFTER_PERFORM,
                 "click_cancel_time": now,
                 "click_cancel_reason": reason,
             }).eq("id", payment["id"]).execute()
+            if not update_result.data:
+                return _err(ERR_TX_NOT_FOUND, "Failed to cancel transaction")
             return _ok({
                 "click_trans_id": click_trans_id,
                 "merchant_trans_id": str(payment["id"]),
@@ -266,12 +272,14 @@ async def click_webhook(request: Request):
                 "state": STATE_CANCELLED_AFTER_PERFORM,
             })
 
-        db.table("payments").update({
+        update_result = db.table("payments").update({
             "status": "failed",
             "click_state": STATE_CANCELLED,
             "click_cancel_time": now,
             "click_cancel_reason": reason,
         }).eq("id", payment["id"]).execute()
+        if not update_result.data:
+            return _err(ERR_TX_NOT_FOUND, "Failed to cancel transaction")
 
         logger.info("Click payment cancelled: id=%s click_trans=%s", payment["id"], click_trans_id)
         return _ok({

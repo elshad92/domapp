@@ -8,7 +8,6 @@ Tests for apartments endpoints:
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -93,7 +92,9 @@ class TestUpdateApartment:
     def test_update_apartment(self, client: TestClient, auth_headers, mock_supabase):
         """PATCH /api/v1/apartments/{id} updates an apartment."""
         mock_supabase._builder._results = [
-            [{"id": 10, "building_id": 1, "number": "5A", "floor": 3}]
+            [{"id": 1}],  # company buildings
+            {"id": 10, "building_id": 1, "number": "5", "floor": 3},  # existing apartment
+            [{"id": 10, "building_id": 1, "number": "5A", "floor": 3}],  # update result
         ]
 
         payload = {"number": "5A"}
@@ -119,7 +120,8 @@ class TestDeleteApartment:
     def test_delete_apartment(self, client: TestClient, auth_headers, mock_supabase):
         """DELETE /api/v1/apartments/{id} deletes an apartment."""
         mock_supabase._builder._results = [
-            [{"id": 10}]  # deleted apartment returned
+            [{"id": 1}],  # company buildings
+            {"id": 10, "building_id": 1, "number": "5", "floor": 3},  # existing apartment
         ]
 
         resp = client.delete("/api/v1/apartments/10", headers=auth_headers)

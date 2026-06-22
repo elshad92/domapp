@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.auth import get_current_company
 from backend.db import get_supabase
-from backend.models.schemas import PollCreate, PollResponse, PollVoteRequest
+from backend.models.schemas import PollCreate, PollResponse, PollVoteRequest, ResidentPollResponse
 from backend.routers.resident_api import get_current_resident
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,19 @@ router = APIRouter(tags=["polls"])
 def _company_building_ids(db, company_id: int) -> list[int]:
     result = db.table("buildings").select("id").eq("company_id", company_id).execute()
     return [row["id"] for row in (result.data or [])]
+
+
+def _resident_building_id(db, resident_id: int) -> int | None:
+    res = db.table("residents").select("apartment_id").eq("id", resident_id).maybe_single().execute()
+    if not res.data or not res.data.get("apartment_id"):
+        return None
+    apt = db.table("apartments").select("building_id").eq("id", res.data["apartment_id"]).maybe_single().execute()
+    return apt.data.get("building_id") if apt.data else None
+
+
+def _assert_company_poll(db, company_id: int, poll: dict) -> None:
+    if poll.get("building_id") not in _company_building_ids(db, company_id):
+        raise HTTPException(status_code=403, detail="Poll is not available for this company")
 
 
 @router.get("/polls", response_model=list[PollResponse])
@@ -80,6 +93,7 @@ async def get_poll(
     result = db.table("polls").select("*").eq("id", poll_id).maybe_single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Опрос не найден")
+    _assert_company_poll(db, company["company_id"], result.data)
     return result.data
 
 
@@ -94,6 +108,7 @@ async def get_poll_results(
     poll = db.table("polls").select("*").eq("id", poll_id).maybe_single().execute()
     if not poll.data:
         raise HTTPException(status_code=404, detail="Опрос не найден")
+    _assert_company_poll(db, company["company_id"], poll.data)
 
     options = poll.data.get("options", [])
     votes = db.table("poll_votes").select("option_index").eq("poll_id", poll_id).execute()
@@ -117,7 +132,7 @@ async def get_poll_results(
 # === Resident endpoints ===
 
 
-@router.get("/resident/me/polls", response_model=list[PollResponse])
+@router.get("/resident/me/polls", response_model=list[ResidentPollResponse])
 async def resident_polls(
     resident: dict = Depends(get_current_resident),
 ):
@@ -125,20 +140,9 @@ async def resident_polls(
     db = get_supabase()
     resident_id = resident["resident_id"]
 
-    # Получаем building_id жильца
-    res = db.table("residents").select("apartment_id").eq("id", resident_id).maybe_single().execute()
-    if not res.data:
+    building_id = _resident_building_id(db, resident_id)
+    if not building_id:
         return []
-
-    apartment_id = res.data.get("apartment_id")
-    if not apartment_id:
-        return []
-
-    apt = db.table("apartments").select("building_id").eq("id", apartment_id).maybe_single().execute()
-    if not apt.data:
-        return []
-
-    building_id = apt.data["building_id"]
 
     # Получаем опросы для этого дома
     result = db.table("polls").select("*").eq("building_id", building_id).order("created_at", desc=True).execute()
@@ -166,6 +170,13 @@ async def resident_vote(
     poll = db.table("polls").select("*").eq("id", poll_id).maybe_single().execute()
     if not poll.data:
         raise HTTPException(status_code=404, detail="Опрос не найден")
+
+    if data.poll_id != poll_id or data.resident_id != resident_id:
+        raise HTTPException(status_code=403, detail="Vote payload does not match authenticated resident")
+
+    building_id = _resident_building_id(db, resident_id)
+    if not building_id or poll.data.get("building_id") != building_id:
+        raise HTTPException(status_code=403, detail="Опрос недоступен для вашего дома")
 
     # Проверяем, не истёк ли опрос
     ends_at = poll.data.get("ends_at")

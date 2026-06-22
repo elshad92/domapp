@@ -190,13 +190,15 @@ async def payme_webhook(
             return _err(ERR_INVALID_AMOUNT, f"Expected {expected_tiyin} tiyin", rid)
 
         now = _now_ms()
-        db.table("payments").update(
+        update_result = db.table("payments").update(
             {
                 "payme_transaction_id": tx_id,
                 "payme_create_time": now,
                 "payme_state": STATE_CREATED,
             }
         ).eq("id", payment["id"]).execute()
+        if not update_result.data:
+            return _err(ERR_TX_NOT_FOUND, "Failed to create transaction", rid)
 
         return _ok({"create_time": now, "transaction": str(payment["id"]), "state": STATE_CREATED}, rid)
 
@@ -218,9 +220,11 @@ async def payme_webhook(
 
         now = _now_ms()
         paid_at = datetime.now(timezone.utc).isoformat()
-        db.table("payments").update(
+        update_result = db.table("payments").update(
             {"status": "paid", "paid_at": paid_at, "payme_state": STATE_PERFORMED}
         ).eq("id", payment["id"]).execute()
+        if not update_result.data:
+            return _err(ERR_TX_NOT_FOUND, "Failed to perform transaction", rid)
         logger.info("Payment performed: id=%s tx=%s", payment["id"], tx_id)
         return _ok({"perform_time": now, "transaction": str(payment["id"]), "state": STATE_PERFORMED}, rid)
 
@@ -234,19 +238,21 @@ async def payme_webhook(
         now = _now_ms()
         if payment["status"] == "paid":
             # Отмена после выполнения — особый статус
-            db.table("payments").update(
+            update_result = db.table("payments").update(
                 {
                     "payme_state": STATE_CANCELLED_AFTER_PERFORM,
                     "payme_cancel_time": now,
                     "payme_cancel_reason": reason,
                 }
             ).eq("id", payment["id"]).execute()
+            if not update_result.data:
+                return _err(ERR_TX_NOT_FOUND, "Failed to cancel transaction", rid)
             return _ok(
                 {"cancel_time": now, "transaction": str(payment["id"]), "state": STATE_CANCELLED_AFTER_PERFORM},
                 rid,
             )
 
-        db.table("payments").update(
+        update_result = db.table("payments").update(
             {
                 "status": "failed",
                 "payme_state": STATE_CANCELLED,
@@ -254,6 +260,8 @@ async def payme_webhook(
                 "payme_cancel_reason": reason,
             }
         ).eq("id", payment["id"]).execute()
+        if not update_result.data:
+            return _err(ERR_TX_NOT_FOUND, "Failed to cancel transaction", rid)
         logger.info("Payment cancelled: id=%s tx=%s reason=%s", payment["id"], tx_id, reason)
         return _ok({"cancel_time": now, "transaction": str(payment["id"]), "state": STATE_CANCELLED}, rid)
 

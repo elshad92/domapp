@@ -71,7 +71,7 @@ export default function Apartments() {
       }
 
       if (editing) {
-        await api.put(`/apartments/${editing.id}`, payload)
+        await api.patch(`/apartments/${editing.id}`, payload)
         toast.success(t('common.updated'))
       } else {
         await api.post('/apartments', payload)

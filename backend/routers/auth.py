@@ -5,14 +5,31 @@ POST /api/v1/auth/login       — вход, получение JWT
 """
 
 import logging
+import bcrypt as bcrypt_lib
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from passlib.hash import pbkdf2_sha256
 
 from backend.db import get_supabase
 from backend.auth import create_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["auth"])
+
+
+def _hash_password(password: str) -> str:
+    return pbkdf2_sha256.hash(password)
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    if pbkdf2_sha256.identify(password_hash):
+        return pbkdf2_sha256.verify(password, password_hash)
+    if password_hash.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            return bcrypt_lib.checkpw(password.encode("utf-8")[:72], password_hash.encode("utf-8"))
+        except ValueError:
+            return False
+    return False
 
 
 class RegisterRequest(BaseModel):
@@ -50,9 +67,7 @@ async def register(data: RegisterRequest):
     if existing.data:
         raise HTTPException(status_code=400, detail="Email уже зарегистрирован")
 
-    # Хешируем пароль (passlib с bcrypt)
-    from passlib.hash import bcrypt
-    hashed = bcrypt.hash(data.password)
+    hashed = _hash_password(data.password)
 
     # Создаём компанию
     result = (
@@ -97,9 +112,7 @@ async def login(data: LoginRequest):
 
     company = result.data
 
-    # Проверяем пароль
-    from passlib.hash import bcrypt
-    if not bcrypt.verify(data.password, company["password_hash"]):
+    if not _verify_password(data.password, company["password_hash"]):
         raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
     token = create_token(company["id"], company["name"], company["plan"])

@@ -8,7 +8,6 @@ Tests for auth endpoints:
 from __future__ import annotations
 
 import jwt
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.auth import JWT_ALGORITHM, JWT_SECRET
@@ -56,13 +55,13 @@ class TestRegister:
 class TestLogin:
     def test_successful_login(self, client: TestClient, mock_supabase):
         """POST /api/v1/auth/login returns token for valid credentials."""
-        from passlib.hash import bcrypt
+        from passlib.hash import pbkdf2_sha256
 
-        hashed = bcrypt.hash("correctpassword")
+        hashed = pbkdf2_sha256.hash("correctpassword")
 
         mock_supabase._builder._results = [
             {"id": 1, "name": "TestCo", "email": "test@test.com",
-             "password_hash": hashed},
+             "password_hash": hashed, "plan": "basic"},
         ]
 
         payload = {"email": "test@test.com", "password": "correctpassword"}
@@ -75,13 +74,13 @@ class TestLogin:
 
     def test_invalid_password(self, client: TestClient, mock_supabase):
         """POST /api/v1/auth/login returns 401 for wrong password."""
-        from passlib.hash import bcrypt
+        from passlib.hash import pbkdf2_sha256
 
-        hashed = bcrypt.hash("correctpassword")
+        hashed = pbkdf2_sha256.hash("correctpassword")
 
         mock_supabase._builder._results = [
             {"id": 1, "name": "TestCo", "email": "test@test.com",
-             "password_hash": hashed},
+             "password_hash": hashed, "plan": "basic"},
         ]
 
         payload = {"email": "test@test.com", "password": "wrongpassword"}

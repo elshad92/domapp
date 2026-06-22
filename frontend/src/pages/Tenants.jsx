@@ -63,7 +63,7 @@ export default function Tenants() {
       }
 
       if (editing) {
-        await api.put(`/tenants/${editing.id}`, payload)
+        await api.patch(`/tenants/${editing.id}`, payload)
         toast.success(t('common.updated'))
       } else {
         await api.post('/tenants', payload)

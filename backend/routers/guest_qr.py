@@ -7,7 +7,6 @@ POST   /api/v1/guest/deactivate/{code_id}  — деактивировать QR-�
 
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
 from pydantic import BaseModel
 
 from backend.db import get_supabase
@@ -16,7 +15,6 @@ from backend.services.qr_code import (
     generate_guest_qr,
     verify_guest_code,
     deactivate_guest_code,
-    GUEST_CODE_EXPIRE_HOURS,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,6 +65,7 @@ async def create_guest_qr(
         building_address=building_address,
         apartment_number=apartment_number,
         resident_name=resident_name,
+        resident_id=resident_id,
     )
 
     import base64
@@ -100,11 +99,14 @@ async def verify_guest(code_id: str):
 
 
 @router.post("/guest/deactivate/{code_id}")
-async def deactivate_guest(code_id: str):
+async def deactivate_guest(
+    code_id: str,
+    resident: dict = Depends(get_current_resident),
+):
     """
     Деактивировать гостевой QR-код.
     """
-    success = deactivate_guest_code(code_id)
+    success = deactivate_guest_code(code_id, resident_id=resident["resident_id"])
     if not success:
         raise HTTPException(status_code=404, detail="Код не найден")
     return {"success": True, "message": "Код деактивирован"}
