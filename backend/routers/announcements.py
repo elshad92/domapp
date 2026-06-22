@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.auth import get_current_company, verify_internal_key
 from backend.db import get_supabase
 from backend.models.schemas import AnnouncementCreate, AnnouncementResponse
-from bot.handlers.notifications import notify_new_announcement
+from backend.services.telegram_notifications import notify_new_announcement
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["announcements"])

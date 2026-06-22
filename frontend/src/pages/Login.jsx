@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Building2, Mail, Lock, User, Phone, LogIn, UserPlus, Globe, PlayCircle, CheckCircle2 } from 'lucide-react'
+import { Building2, Mail, Lock, User, Phone, LogIn, UserPlus, Globe, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../api'
 
 const plans = [
-  { key: 'basic', price: '$300' },
-  { key: 'standard', price: '$600' },
-  { key: 'premium', price: '$1000' },
+  { key: 'start', price: '$100' },
+  { key: 'growth', price: '$300' },
+  { key: 'pro', price: '$600' },
+  { key: 'enterprise', price: '$1000' },
 ]
 
 export default function Login() {
@@ -28,7 +29,7 @@ export default function Login() {
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('company_id', res.data.company_id)
     localStorage.setItem('company_name', res.data.company_name)
-    localStorage.setItem('plan', res.data.plan || 'basic')
+    localStorage.setItem('plan', res.data.plan || 'start')
   }
 
   const handleLogin = async (e) => {
@@ -68,23 +69,6 @@ export default function Login() {
       navigate('/onboarding')
     } catch (err) {
       const detail = err.response?.data?.detail || t('login.registerError')
-      setError(detail)
-      toast.error(detail)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDemoLogin = async () => {
-    setError('')
-    setLoading(true)
-    try {
-      const res = await api.post('/auth/demo-login')
-      storeAuth(res)
-      toast.success(t('common.success'))
-      navigate('/dashboard')
-    } catch (err) {
-      const detail = err.response?.data?.detail || t('login.error')
       setError(detail)
       toast.error(detail)
     } finally {
@@ -176,23 +160,6 @@ export default function Login() {
               )}
             </button>
 
-            {/* Demo login */}
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-gray-400">{t('login.or')}</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              disabled={loading}
-              className="w-full border-2 border-gray-200 text-gray-600 py-2.5 rounded-xl hover:border-teal-300 hover:text-teal-600 transition font-medium disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
-            >
-              <PlayCircle size={16} /> {t('login.tryDemo')}
-            </button>
           </form>
         ) : (
           <form onSubmit={handleRegister} className="space-y-4">
@@ -257,7 +224,7 @@ export default function Login() {
             {/* Plan selector */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('login.selectPlan')}</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {plans.map((plan) => (
                   <button
                     key={plan.key}

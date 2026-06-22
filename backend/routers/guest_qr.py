@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from backend.auth import require_feature
 from backend.db import get_supabase
 from backend.routers.resident_api import get_current_resident
 from backend.services.qr_code import (
@@ -33,7 +32,6 @@ class GuestQrResponse(BaseModel):
 @router.post("/resident/me/guest-qr")
 async def create_guest_qr(
     resident: dict = Depends(get_current_resident),
-    _: dict = Depends(require_feature("guest_qr")),
 ):
     """
     Создать QR-код для гостя.

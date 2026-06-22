@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Building2, ClipboardList, CreditCard, BarChart3,
   QrCode, Bell, Megaphone, CheckCircle2, Users,
-  ChevronRight, Globe, Menu, X, PlayCircle,
+  ChevronRight, Globe, Menu, X,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -17,9 +17,10 @@ const features = [
 ]
 
 const plans = [
-  { key: 'basic', price: '$300', popular: false },
-  { key: 'standard', price: '$600', popular: true },
-  { key: 'premium', price: '$1000', popular: false },
+  { key: 'start', price: '$100', popular: false },
+  { key: 'growth', price: '$300', popular: true },
+  { key: 'pro', price: '$600', popular: false },
+  { key: 'enterprise', price: '$1000', popular: false },
 ]
 
 export default function Landing() {
@@ -101,24 +102,6 @@ export default function Landing() {
               >
                 {t('landing.startFree')} <ChevronRight size={18} />
               </button>
-              <button
-                onClick={async () => {
-                  try {
-                    const api = (await import('../api')).default
-                    const res = await api.post('/auth/demo-login')
-                    localStorage.setItem('token', res.data.token)
-                    localStorage.setItem('company_id', res.data.company_id)
-                    localStorage.setItem('company_name', res.data.company_name)
-                    localStorage.setItem('plan', 'premium')
-                    window.location.href = '/dashboard'
-                  } catch {
-                    // fallback
-                  }
-                }}
-                className="w-full sm:w-auto border-2 border-gray-200 text-gray-700 px-8 py-3.5 rounded-xl text-base font-semibold hover:border-teal-300 hover:text-teal-600 transition flex items-center justify-center gap-2"
-              >
-                <PlayCircle size={18} /> {t('landing.tryDemo')}
-              </button>
             </div>
           </div>
         </div>
@@ -155,7 +138,7 @@ export default function Landing() {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">{t('landing.pricingTitle')}</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">{t('landing.pricingSubtitle')}</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {plans.map((plan) => (
               <div
                 key={plan.key}

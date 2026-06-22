@@ -81,50 +81,30 @@ def get_current_company(
     return payload
 
 
-# === Plan-based feature gating ===
+# === Plan-based limits (по количеству квартир) ===
 
 PLAN_FEATURES: dict[str, dict] = {
-    "basic": {
-        "max_buildings": 1,
-        "max_residents": 50,
-        "features": ["requests", "announcements", "payments", "dashboard"],
+    "start": {
+        "max_residents": 100,
+        "label": "Старт",
+        "price": 100,
     },
-    "standard": {
-        "max_buildings": 5,
+    "growth": {
         "max_residents": 500,
-        "features": [
-            "requests", "announcements", "payments", "dashboard",
-            "polls", "reports", "employees",
-        ],
+        "label": "Рост",
+        "price": 300,
     },
-    "premium": {
-        "max_buildings": 999,
+    "pro": {
+        "max_residents": 2000,
+        "label": "Профи",
+        "price": 600,
+    },
+    "enterprise": {
         "max_residents": 99999,
-        "features": [
-            "requests", "announcements", "payments", "dashboard",
-            "polls", "reports", "employees",
-            "guest_qr", "push_notifications", "telegram_bot",
-            "analytics", "multi_admin", "api_access",
-        ],
+        "label": "Корпоративный",
+        "price": 1000,
     },
 }
-
-
-def require_feature(feature: str):
-    """Dependency factory — возвращает FastAPI dependency, проверяющую доступ к функции по тарифу."""
-    async def _checker(company: dict = Depends(get_current_company)) -> dict:
-        plan = company.get("plan", "basic")
-        allowed = PLAN_FEATURES.get(plan, PLAN_FEATURES["basic"])["features"]
-        if feature not in allowed:
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    f"Функция '{feature}' недоступна на тарифе «{plan}». "
-                    f"Обновите тариф для доступа к этой функции."
-                ),
-            )
-        return company
-    return _checker
 
 
 def verify_internal_key(x_internal_key: Optional[str] = Header(default=None)) -> bool:

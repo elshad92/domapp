@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.db import get_supabase
-from backend.auth import get_current_company, require_feature
+from backend.auth import get_current_company
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["employees"])
@@ -40,7 +40,7 @@ class EmployeeResponse(BaseModel):
 @router.get("/employees", response_model=list[EmployeeResponse])
 async def list_employees(
     role: str | None = None,
-    company: dict = Depends(require_feature("employees")),
+    company: dict = Depends(get_current_company),
 ):
     db = get_supabase()
     query = db.table("employees").select("*").eq("company_id", company["company_id"])
@@ -52,7 +52,7 @@ async def list_employees(
 @router.post("/employees", response_model=EmployeeResponse)
 async def create_employee(
     data: EmployeeCreate,
-    company: dict = Depends(require_feature("employees")),
+    company: dict = Depends(get_current_company),
 ):
     db = get_supabase()
     payload = data.model_dump()

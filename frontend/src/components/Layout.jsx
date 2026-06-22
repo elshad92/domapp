@@ -18,29 +18,17 @@ import {
   Globe,
 } from 'lucide-react'
 
-const PLAN_FEATURES = {
-  basic: {
-    features: ['dashboard', 'buildings', 'apartments', 'tenants', 'requests', 'payments', 'announcements'],
-  },
-  standard: {
-    features: ['dashboard', 'buildings', 'apartments', 'tenants', 'requests', 'payments', 'announcements', 'polls', 'reports', 'employees'],
-  },
-  premium: {
-    features: ['dashboard', 'buildings', 'apartments', 'tenants', 'requests', 'payments', 'announcements', 'polls', 'reports', 'employees'],
-  },
-}
-
-const allNavItems = [
-  { path: '/dashboard', label: 'nav.dashboard', icon: LayoutDashboard, feature: 'dashboard' },
-  { path: '/buildings', label: 'nav.buildings', icon: Building2, feature: 'buildings' },
-  { path: '/apartments', label: 'nav.apartments', icon: DoorOpen, feature: 'apartments' },
-  { path: '/tenants', label: 'nav.tenants', icon: Users, feature: 'tenants' },
-  { path: '/employees', label: 'nav.employees', icon: Briefcase, feature: 'employees' },
-  { path: '/requests', label: 'nav.requests', icon: ClipboardList, feature: 'requests' },
-  { path: '/payments', label: 'nav.payments', icon: CreditCard, feature: 'payments' },
-  { path: '/announcements', label: 'nav.announcements', icon: Megaphone, feature: 'announcements' },
-  { path: '/polls', label: 'nav.polls', icon: BarChart3, feature: 'polls' },
-  { path: '/reports', label: 'nav.reports', icon: FileText, feature: 'reports' },
+const navItems = [
+  { path: '/dashboard', label: 'nav.dashboard', icon: LayoutDashboard },
+  { path: '/buildings', label: 'nav.buildings', icon: Building2 },
+  { path: '/apartments', label: 'nav.apartments', icon: DoorOpen },
+  { path: '/tenants', label: 'nav.tenants', icon: Users },
+  { path: '/employees', label: 'nav.employees', icon: Briefcase },
+  { path: '/requests', label: 'nav.requests', icon: ClipboardList },
+  { path: '/payments', label: 'nav.payments', icon: CreditCard },
+  { path: '/announcements', label: 'nav.announcements', icon: Megaphone },
+  { path: '/polls', label: 'nav.polls', icon: BarChart3 },
+  { path: '/reports', label: 'nav.reports', icon: FileText },
 ]
 
 export default function Layout({ children }) {
@@ -49,9 +37,6 @@ export default function Layout({ children }) {
   const { t, i18n } = useTranslation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const companyName = localStorage.getItem('company_name') || 'DomApp'
-  const plan = localStorage.getItem('plan') || 'basic'
-  const allowedFeatures = PLAN_FEATURES[plan]?.features || PLAN_FEATURES.basic.features
-  const navItems = allNavItems.filter(item => allowedFeatures.includes(item.feature))
 
   const handleLogout = () => {
     localStorage.removeItem('token')

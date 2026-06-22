@@ -1,10 +1,11 @@
 # DomApp Deploy Script (PowerShell v3 - SSH pipe)
 # Deploys backend, frontend, and bot via Docker
-# Uses sshpass for password authentication + tar pipe for fast transfer
+# Uses SSH key authentication by default. Password auth is available only when
+# SSH_PASSWORD is set in the local environment.
 
 $SERVER = "root@51.38.119.218"
 $REMOTE_DIR = "/opt/domapp"
-$SSH_PASSWORD = "DpXWg9oz38fO"
+$SSH_PASSWORD = $env:SSH_PASSWORD
 $SSHPASS = "C:\Users\user\AppData\Local\Microsoft\WinGet\Packages\xhcoding.sshpass-win32_Microsoft.Winget.Source_8wekyb3d8bbwe\sshpass.exe"
 $LOCAL_DIR = "C:\Users\user\Desktop\domapp"
 
@@ -24,7 +25,11 @@ tar -cf $ARCHIVE `
   --exclude="node_modules" `
   --exclude="__pycache__" `
   --exclude=".env" `
+  --exclude=".env.*" `
   --exclude=".git" `
+  --exclude="*.log" `
+  --exclude="logs" `
+  --exclude="backend/logs" `
   --exclude="*.pyc" `
   --exclude=".DS_Store" `
   -C "$LOCAL_DIR\.." `
@@ -39,11 +44,19 @@ Write-Host "  -> Archive created: $ARCHIVE"
 # Step 2: Create remote directory and extract archive via SSH pipe
 Write-Host ""
 Write-Host "[2/4] Creating remote directory..."
-& $env:ComSpec /c "set SSHPASS=$SSH_PASSWORD && $SSHPASS -e ssh -o StrictHostKeyChecking=no $SERVER mkdir -p $REMOTE_DIR"
+if ($SSH_PASSWORD -and (Test-Path $SSHPASS)) {
+    & $env:ComSpec /c "set SSHPASS=$SSH_PASSWORD && $SSHPASS -e ssh -o StrictHostKeyChecking=no $SERVER mkdir -p $REMOTE_DIR"
+} else {
+    ssh -o StrictHostKeyChecking=no $SERVER "mkdir -p $REMOTE_DIR"
+}
 
 Write-Host ""
 Write-Host "[3/4] Copying archive via SSH pipe..."
-& $env:ComSpec /c "set SSHPASS=$SSH_PASSWORD && type $ARCHIVE | $SSHPASS -e ssh -o StrictHostKeyChecking=no $SERVER 'cd $REMOTE_DIR && tar -xf - && cp .env.production .env'"
+if ($SSH_PASSWORD -and (Test-Path $SSHPASS)) {
+    & $env:ComSpec /c "set SSHPASS=$SSH_PASSWORD && type $ARCHIVE | $SSHPASS -e ssh -o StrictHostKeyChecking=no $SERVER 'cd $REMOTE_DIR && tar -xf - && if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi'"
+} else {
+    & $env:ComSpec /c "type $ARCHIVE | ssh -o StrictHostKeyChecking=no $SERVER `"cd $REMOTE_DIR && tar -xf - && if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi`""
+}
 
 # Step 4: Deploy with Docker
 Write-Host ""
@@ -66,7 +79,11 @@ echo "============================================"
 docker-compose ps
 "@
 
-& $env:ComSpec /c "set SSHPASS=$SSH_PASSWORD && $SSHPASS -e ssh -o StrictHostKeyChecking=no $SERVER '$SSH_COMMANDS'"
+if ($SSH_PASSWORD -and (Test-Path $SSHPASS)) {
+    & $env:ComSpec /c "set SSHPASS=$SSH_PASSWORD && $SSHPASS -e ssh -o StrictHostKeyChecking=no $SERVER '$SSH_COMMANDS'"
+} else {
+    ssh -o StrictHostKeyChecking=no $SERVER $SSH_COMMANDS
+}
 
 # Cleanup
 Remove-Item -Path $ARCHIVE -Force -ErrorAction SilentlyContinue

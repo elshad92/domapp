@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.auth import get_current_company, verify_internal_key
 from backend.db import get_supabase
 from backend.models.schemas import RequestCreate, RequestResponse, RequestUpdate
-from bot.handlers.notifications import notify_request_status
+from backend.services.telegram_notifications import notify_request_status
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["requests"])

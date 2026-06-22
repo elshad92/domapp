@@ -8,7 +8,7 @@ set -euo pipefail
 
 SERVER="root@51.38.119.218"
 REMOTE_DIR="/opt/domapp"
-SSH_PASSWORD="DpXWg9oz38fO"
+SSH_PASSWORD="${SSH_PASSWORD:-}"
 
 echo "============================================"
 echo "  DomApp Deploy"
@@ -19,8 +19,12 @@ echo "============================================"
 # Check for sshpass
 SSHPASS_AVAILABLE=false
 if command -v sshpass &>/dev/null; then
-  SSHPASS_AVAILABLE=true
-  echo "[INFO] sshpass detected, using password authentication"
+  if [ -n "${SSH_PASSWORD}" ]; then
+    SSHPASS_AVAILABLE=true
+    echo "[INFO] sshpass detected, using password authentication from SSH_PASSWORD"
+  else
+    echo "[INFO] sshpass detected, but SSH_PASSWORD is not set. Using SSH key authentication."
+  fi
 else
   echo "[WARN] sshpass not found. Attempting SSH key authentication..."
 fi
@@ -33,7 +37,11 @@ RSYNC_CMD="rsync -avz --delete \
   --exclude 'node_modules' \
   --exclude '__pycache__' \
   --exclude '.env' \
+  --exclude '.env.*' \
   --exclude '.git' \
+  --exclude '*.log' \
+  --exclude 'logs' \
+  --exclude 'backend/logs' \
   --exclude '*.pyc' \
   --exclude '.DS_Store' \
   ./ \"${SERVER}:${REMOTE_DIR}/\""
@@ -56,11 +64,12 @@ SSH_SCRIPT=$(cat << 'ENDSSH'
   # Step 3: Copy .env.production to .env if .env doesn't exist
   echo "[3/4] Setting up environment..."
   if [ ! -f .env ]; then
-    if [ -f .env.production ]; then
-      cp .env.production .env
-      echo "  -> Created .env from .env.production"
+    if [ -f .env.example ]; then
+      cp .env.example .env
+      echo "  -> Created placeholder .env from .env.example"
+      echo "  -> Fill real secrets on the server before restarting production."
     else
-      echo "  -> ERROR: .env.production not found!"
+      echo "  -> ERROR: .env missing and .env.example not found!"
       exit 1
     fi
   else
